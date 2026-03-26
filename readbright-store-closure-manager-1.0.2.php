@@ -451,7 +451,7 @@ if (!class_exists('RB_Store_Closure_Manager')) {
 
         public function filter_is_purchasable($purchasable, $product) {
             $state = $this->get_closure_state();
-            if (!empty($state['closed'])) {
+            if (!empty($state['closed']) && !is_product()) {
                 return false;
             }
             return $purchasable;
@@ -473,7 +473,6 @@ if (!class_exists('RB_Store_Closure_Manager')) {
             }
 
             remove_action('woocommerce_after_shop_loop_item', 'woocommerce_template_loop_add_to_cart', 10);
-            remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
 
             $settings = $this->get_settings();
             if (!empty($settings['show_notice_on_shop'])) {
@@ -491,14 +490,8 @@ if (!class_exists('RB_Store_Closure_Manager')) {
         }
 
         public function render_single_closed_notice() {
-            $settings = $this->get_settings();
             $state = $this->get_closure_state();
-            $button_text = !empty($settings['closed_button_text']) ? $settings['closed_button_text'] : __('Store Closed', 'rb-store-closure-manager');
-
-            echo '<div class="rb-scm-single-closed-wrap">';
             echo '<p class="stock out-of-stock rb-scm-closed-message">' . esc_html($state['message']) . '</p>';
-            echo '<button type="button" class="single_add_to_cart_button button alt rb-scm-closed-button" disabled aria-disabled="true">' . esc_html($button_text) . '</button>';
-            echo '</div>';
         }
 
         public function output_banner_styles() {
@@ -593,22 +586,14 @@ if (!class_exists('RB_Store_Closure_Manager')) {
                 selectors.forEach(function (selector) {
                     document.querySelectorAll(selector).forEach(function (el) {
                         if (el.tagName === 'FORM') {
-                            el.classList.add('rb-scm-force-hide');
-                            if (!el.nextElementSibling || !el.nextElementSibling.classList.contains('rb-scm-single-closed-wrap')) {
-                                var wrap = document.createElement('div');
-                                wrap.className = 'rb-scm-single-closed-wrap';
-                                wrap.innerHTML =
-                                    '<p class="stock out-of-stock rb-scm-closed-message">' + message + '</p>' +
-                                    '<button type="button" class="single_add_to_cart_button button alt rb-scm-closed-button" disabled aria-disabled="true">' + buttonText + '</button>';
-                                el.insertAdjacentElement('afterend', wrap);
-                            }
+                            el.addEventListener('submit', function (event) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                alert(message);
+                            }, true);
                         } else {
                             el.classList.add('rb-scm-disabled-link');
                             el.setAttribute('aria-disabled', 'true');
-
-                            if (el.tagName === 'BUTTON') {
-                                el.disabled = true;
-                            }
 
                             if (el.textContent && el.textContent.trim() !== '') {
                                 el.textContent = buttonText;
