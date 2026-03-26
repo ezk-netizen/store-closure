@@ -491,7 +491,16 @@ if (!class_exists('RB_Store_Closure_Manager')) {
 
         public function render_single_closed_notice() {
             $state = $this->get_closure_state();
-            echo '<p class="stock out-of-stock rb-scm-closed-message">' . esc_html($state['message']) . '</p>';
+            $message = !empty($state['message']) ? $state['message'] : __('Store is currently closed.', 'rb-store-closure-manager');
+
+            echo '<div class="rb-scm-product-modal" hidden aria-hidden="true">';
+            echo '<div class="rb-scm-product-modal__backdrop" data-rb-scm-close></div>';
+            echo '<div class="rb-scm-product-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="rb-scm-product-modal-title">';
+            echo '<button type="button" class="rb-scm-product-modal__close" aria-label="' . esc_attr__('Close dialog', 'rb-store-closure-manager') . '" data-rb-scm-close>&times;</button>';
+            echo '<h2 id="rb-scm-product-modal-title" class="rb-scm-product-modal__title">' . esc_html__('Store Closed', 'rb-store-closure-manager') . '</h2>';
+            echo '<p class="rb-scm-product-modal__message">' . esc_html($message) . '</p>';
+            echo '</div>';
+            echo '</div>';
         }
 
         public function output_banner_styles() {
@@ -510,10 +519,17 @@ if (!class_exists('RB_Store_Closure_Manager')) {
             echo '.admin-bar .rb-scm-banner{top:32px;}';
             echo '@media (max-width:782px){.admin-bar .rb-scm-banner{top:46px;}}';
             echo '.rb-scm-closed-button.disabled,.rb-scm-closed-button[disabled]{opacity:1;cursor:not-allowed;pointer-events:none;}';
-            echo '.rb-scm-single-closed-wrap{display:flex;flex-direction:column;gap:10px;}';
-            echo '.rb-scm-closed-message{margin:0;}';
             echo '.rb-scm-force-hide{display:none !important;}';
             echo '.rb-scm-disabled-link{pointer-events:none !important;opacity:.65 !important;}';
+            echo '.rb-scm-product-modal[hidden]{display:none !important;}';
+            echo '.rb-scm-product-modal{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:24px;}';
+            echo '.rb-scm-product-modal__backdrop{position:absolute;inset:0;background:rgba(17,24,39,.68);}';
+            echo '.rb-scm-product-modal__dialog{position:relative;max-width:520px;width:min(100%,520px);background:#fff;color:#111827;border-radius:16px;padding:28px 24px;box-shadow:0 24px 80px rgba(0,0,0,.24);text-align:center;}';
+            echo '.rb-scm-product-modal__close{position:absolute;top:10px;right:12px;border:0;background:transparent;color:#6b7280;font-size:28px;line-height:1;cursor:pointer;}';
+            echo '.rb-scm-product-modal__title{margin:0 0 12px;font-size:24px;line-height:1.2;color:#111827;}';
+            echo '.rb-scm-product-modal__message{margin:0;font-size:16px;line-height:1.5;color:#374151;}';
+            echo 'body.rb-scm-modal-open{overflow:hidden;}';
+            echo '@media (max-width:640px){.rb-scm-product-modal{padding:16px;}.rb-scm-product-modal__dialog{padding:24px 18px;}}';
             echo '</style>';
         }
 
@@ -570,42 +586,85 @@ if (!class_exists('RB_Store_Closure_Manager')) {
             document.addEventListener('DOMContentLoaded', function () {
                 var buttonText = <?php echo wp_json_encode($button_text); ?>;
                 var message = <?php echo wp_json_encode($message); ?>;
-                var selectors = [
-                    'form.cart',
-                    '.single_add_to_cart_button',
-                    '.add_to_cart_button',
-                    '.ajax_add_to_cart',
-                    '.elementor-widget-woocommerce-product-add-to-cart form.cart',
-                    '.elementor-widget-woocommerce-product-add-to-cart .single_add_to_cart_button',
-                    '.elementor-widget-wc-archive-products .add_to_cart_button',
-                    '.elementor-widget-loop-grid .add_to_cart_button',
-                    '.woocommerce a.button.add_to_cart_button',
-                    '.woocommerce button.single_add_to_cart_button'
-                ];
+                var modal = document.querySelector('.rb-scm-product-modal');
+                var lastTrigger = null;
 
-                selectors.forEach(function (selector) {
-                    document.querySelectorAll(selector).forEach(function (el) {
-                        if (el.tagName === 'FORM') {
-                            el.addEventListener('submit', function (event) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                alert(message);
-                            }, true);
-                        } else {
-                            el.classList.add('rb-scm-disabled-link');
-                            el.setAttribute('aria-disabled', 'true');
+                function openModal(trigger) {
+                    if (!modal) {
+                        window.alert(message);
+                        return;
+                    }
 
-                            if (el.textContent && el.textContent.trim() !== '') {
-                                el.textContent = buttonText;
-                            }
+                    lastTrigger = trigger || null;
+                    modal.hidden = false;
+                    modal.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('rb-scm-modal-open');
 
-                            el.addEventListener('click', function (event) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                alert(message);
-                            }, true);
+                    var closeButton = modal.querySelector('.rb-scm-product-modal__close');
+                    if (closeButton) {
+                        closeButton.focus();
+                    }
+                }
+
+                function closeModal() {
+                    if (!modal) {
+                        return;
+                    }
+
+                    modal.hidden = true;
+                    modal.setAttribute('aria-hidden', 'true');
+                    document.body.classList.remove('rb-scm-modal-open');
+
+                    if (lastTrigger && typeof lastTrigger.focus === 'function') {
+                        lastTrigger.focus();
+                    }
+                }
+
+                if (modal) {
+                    modal.querySelectorAll('[data-rb-scm-close]').forEach(function (el) {
+                        el.addEventListener('click', function () {
+                            closeModal();
+                        });
+                    });
+
+                    document.addEventListener('keydown', function (event) {
+                        if (event.key === 'Escape' && !modal.hidden) {
+                            closeModal();
                         }
                     });
+                }
+
+                document.querySelectorAll('.single_add_to_cart_button, .elementor-widget-woocommerce-product-add-to-cart .single_add_to_cart_button').forEach(function (button) {
+                    button.setAttribute('aria-disabled', 'true');
+
+                    if (button.textContent && button.textContent.trim() !== '') {
+                        button.textContent = buttonText;
+                    }
+
+                    button.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openModal(button);
+                    }, true);
+                });
+
+                document.querySelectorAll('form.cart, .elementor-widget-woocommerce-product-add-to-cart form.cart').forEach(function (form) {
+                    form.addEventListener('submit', function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        var trigger = form.querySelector('.single_add_to_cart_button');
+                        openModal(trigger);
+                    }, true);
+                });
+
+                document.querySelectorAll('.add_to_cart_button, .ajax_add_to_cart, .elementor-widget-wc-archive-products .add_to_cart_button, .elementor-widget-loop-grid .add_to_cart_button, .woocommerce a.button.add_to_cart_button').forEach(function (el) {
+                    el.classList.add('rb-scm-disabled-link');
+                    el.setAttribute('aria-disabled', 'true');
+
+                    if (el.textContent && el.textContent.trim() !== '') {
+                        el.textContent = buttonText;
+                    }
                 });
             });
             </script>
