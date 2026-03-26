@@ -597,12 +597,6 @@ if (!class_exists('RB_Store_Closure_Manager')) {
                                 event.stopPropagation();
                                 alert(message);
                             }, true);
-                        } else if (el.closest('form.cart')) {
-                            el.addEventListener('click', function (event) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                alert(message);
-                            }, true);
                         } else {
                             el.classList.add('rb-scm-disabled-link');
                             el.setAttribute('aria-disabled', 'true');
