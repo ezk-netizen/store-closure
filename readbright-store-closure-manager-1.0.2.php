@@ -513,7 +513,7 @@ if (!class_exists('RB_Store_Closure_Manager')) {
             echo '.rb-scm-single-closed-wrap{display:flex;flex-direction:column;gap:10px;}';
             echo '.rb-scm-closed-message{margin:0;}';
             echo '.rb-scm-force-hide{display:none !important;}';
-            echo '.rb-scm-disabled-link{pointer-events:none !important;opacity:.65 !important;}';
+            echo '.rb-scm-disabled-link{opacity:.65 !important;cursor:not-allowed !important;}';
             echo '</style>';
         }
 
@@ -585,6 +585,12 @@ if (!class_exists('RB_Store_Closure_Manager')) {
 
                 selectors.forEach(function (selector) {
                     document.querySelectorAll(selector).forEach(function (el) {
+                        if (el.dataset.rbScmBound === '1') {
+                            return;
+                        }
+
+                        el.dataset.rbScmBound = '1';
+
                         if (el.tagName === 'FORM') {
                             el.addEventListener('submit', function (event) {
                                 event.preventDefault();
